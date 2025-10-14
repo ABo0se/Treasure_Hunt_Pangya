@@ -1,0 +1,34 @@
+﻿<Window x:Name="TreasurePoint" x:Class="Treasure_Hunt_Pangya.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Treasure_Hunt_Pangya"
+        mc:Ignorable="d"
+        Title="Treasure Point" FontFamily="Segoe UI Variable Display Semibold" WindowStyle="ThreeDBorderWindow" ResizeMode="NoResize" Height="175" Width="370">
+    <Grid>
+        <StackPanel Orientation="Vertical">
+            <StackPanel Orientation="Horizontal">
+                <Label x:Name="TPointLabel" Content="Treasure point :" HorizontalAlignment="Left" Margin="10,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
+                <TextBox x:Name="TreasureValueText" TextWrapping="Wrap" Text="0" Width="100" VerticalAlignment="Center" Margin="0,5,0,5" FontFamily="Segoe UI Variable Display Semibold" FontSize="14" HorizontalAlignment="Left" TextAlignment="Center"/>
+                <Label x:Name="LuckLabel" Content="Luck %" HorizontalAlignment="Left" Margin="10,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
+                <TextBox x:Name="LuckValueText" TextWrapping="Wrap" Text="0" Width="100" VerticalAlignment="Center" Margin="0,5,10,5" FontFamily="Segoe UI Variable Display Semibold" FontSize="14" HorizontalAlignment="Left" TextAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <CheckBox x:Name="Natural_Wind_Checkbox" Content="Natural wind mode" VerticalAlignment="Center" Margin="10,5,0,5" FontFamily="Segoe UI Variable Display Semibold" FontSize="11"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="GoButton" Content="Go !" Width="45" Height="22" FontFamily="Segoe UI Variable Display Semibold" Margin="10,5,10,5" Click="Go_Button_Click"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Label x:Name="TreasureCountPlaceholder" Content="Treasure count :" HorizontalAlignment="Left" Margin="10,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
+                <Label x:Name="TreasureCountText" Content="-" HorizontalAlignment="Left" Margin="0,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
+            </StackPanel>
+        </StackPanel>
+
+
+
+
+
+    </Grid>
+</Window>
