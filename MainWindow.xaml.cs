@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -7,8 +8,10 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using static Treasure_Hunt_Pangya.MainWindow;
 
 namespace Treasure_Hunt_Pangya;
 /// <summary>
@@ -20,6 +23,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AddTreasures();
     }
     public int TreasureHuntPointsTranslation(bool? natural, float luckpercent, float treasurepoints)
     {
@@ -27,21 +31,18 @@ public partial class MainWindow : Window
         int items = 0;
         float luck = 1.0f;
         float luckfactor = 0.0f; //Max 5
-        //float luckmultiplier = 1.00f;
         ///////////////////////////////////////////////////
         //Prevent undesired values
         if (treasurepoints < 0.0f) treasurepoints = 0.0f;
         else if (treasurepoints > 10000.0f) treasurepoints = 10000.0f;
         if (natural == null) natural = false;
         if (luckpercent < 0.0f) luckpercent = 0.0f;
-        //if (luckmultiplier == null) luckmultiplier = 1.0f;
-        //if (treasurepoints == null) treasurepoints = 0.0f;
         ///////////////////////////////////////////////////
         //Bonus
         float luckmultiplier = 1.00f + (luckpercent / 100.0f);
         if (natural == true)
         {
-            luck += 83.4f; //Increase min luck by factor of 1, luck multiplier, if natural wind
+            luck += 83.4f; //Increase min luck by factor of 2, luck multiplier, if natural wind
             luckmultiplier += 0.2f;
         }
         if (treasurepoints > 1000)
@@ -155,34 +156,84 @@ public partial class MainWindow : Window
         }
         else
         {
-            MessageBox.Show("Random Drop: " + randomDrop.ToString());
+            //MessageBox.Show("Random Drop: " + randomDrop.ToString());
             if (remainderDrop >= 0.5m)
                 return (int)Math.Ceiling(randomDrop);
             else
                 return (int)Math.Floor(randomDrop);
         }
     }
-    //Initialize treasure boxes
-    public List<TreasureBox> TreasureBoxes = new List<TreasureBox>();
-
+    #region Treasure Box Initialization
+    //Initialize
+    public void AddTreasures()
+    {
+        //////////////////////////////////////////////////////////////////////////////////
+        //Initialize items
+        //Pang
+        Item StrengthBoost = new Item("Strength Boost", 3);
+        Item Tranquillizer = new Item("Tranquillizer", 3);
+        Item LuckyPangya = new Item("Lucky Pangya", 3);
+        Item SpinMastery = new Item("Spin Mastery", 2);
+        Item CurveMastery = new Item("Curve Mastery", 2);
+        Item MiracleSign = new Item("Miracle Sign", 2);
+        Item PowerStrengthBoost = new Item("Power Strength Boost", 1);
+        List<Item> PangItems = new List<Item>() 
+        {StrengthBoost, Tranquillizer, LuckyPangya, SpinMastery, CurveMastery, MiracleSign, PowerStrengthBoost};
+        /////////////////////////////////////
+        //Cookie
+        Item AutoCalipper = new Item("Auto Calipper", 2);
+        Item SpeedBooster = new Item("Speed Booster", 3);
+        Item SafeTee = new Item("Safe Tee", 1);
+        Item SlientWind = new Item("Slient Wind", 1);
+        Item OblivionFlower = new Item("Oblivion Flower", 1);
+        Item DualLuckyPangya = new Item("Dual Lucky Pangya", 1);
+        Item DualTranquillizer = new Item("Dual Tranquillizer", 1);
+        Item ReplayTape = new Item("Replay Tape", 1);
+        Item PowerCalipper = new Item("Power Calipper", 1);
+        List<Item> CookieItems = new List<Item>()
+        {AutoCalipper, SpeedBooster, SafeTee, SlientWind, OblivionFlower, 
+         DualLuckyPangya, DualTranquillizer, ReplayTape, PowerCalipper};
+        /////////////////////////////////////
+        //Cards
+        Item BronzeCard = new Item("Bronze Card Pack", 3);
+        Item SilverCard = new Item("Sliver Card Pack", 2);
+        Item GoldCard = new Item("Gold Card Pack", 1);
+        List<Item> Cards = new List<Item>()
+        {BronzeCard, SilverCard, GoldCard};
+        /////////////////////////////////////
+        //Rare Items
+        Item CardRemover = new Item("Card Remover", 1);
+        List<Item> Rares = new List<Item>()
+        {CardRemover};
+        //////////////////////////////////////////////////////////////////////////////////
+        //Initialize treasure types
+        TreasureType Pang = new TreasureType("Pang", PangItems, 1, 1200); //60%
+        TreasureType Cookie = new TreasureType("Cookie", CookieItems, 2, 600); //30%
+        TreasureType Card = new TreasureType("Card", Cards, 3, 199); //9.95%
+        TreasureType Rare = new TreasureType("Rare", Rares, 4, 1); //0.05%
+        List<TreasureType> AllTreasures = new List<TreasureType>()
+        {Pang, Cookie, Card, Rare};
+        //Initialize treasure boxes
+        TreasureBox TreasureBox = new TreasureBox("TreasureBox", AllTreasures);
+    }
+    #endregion
     //Classes for treasure box
-    public class TreasureBox()
+    public class TreasureBox(string Name, List<TreasureType> Treasures)
     {
         string Name;
-        List<TreasureType> TreasureList;
-        int weight;
+        List<TreasureType> Treasures;
     }
-    public class TreasureType()
+    public class TreasureType(string Name, List<Item> Items, int TreasureType, int rate)
     {
         string Name;
-        List<Items> Items;
+        List<Item> Items;
         int typeoftreasure; //1 = Common, 2 = Uncommon, 3 = Rare, 4 = Epic, 5 = Legendary
-        int weight;
+        int rate;
     }
-    public class Items()
+    public class Item(string Name, int Rate)
     {
         string Name;
-        int weight;
+        int Rate;
     }
 
     private void Go_Button_Click(object sender, RoutedEventArgs e)
