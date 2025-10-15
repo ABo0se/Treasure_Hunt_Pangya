@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -19,16 +20,27 @@ namespace Treasure_Hunt_Pangya;
 /// </summary>
 public partial class MainWindow : Window
 {
-    static readonly Random rand = new Random();
+    #region DefaultVars
+    static readonly Random rand = new();
+    private readonly TreasureBox TreasureBoxDefault = new("TreasureBox", new List<TreasureType>());
+    private readonly List<TreasureType> AllTreasures = new();
+    private readonly List<Item> PangItems = [];
+    private readonly List<Item> CookieItems = [];
+    private readonly List<Item> CardItems = [];
+    private readonly List<Item> RareItems = [];
+    private Dictionary<Item, (int, int)> DropChance;
+    private int TotalItemDropChance;
+    #endregion
     public MainWindow()
     {
         InitializeComponent();
         AddTreasures();
     }
-    public int TreasureHuntPointsTranslation(bool? natural, float luckpercent, float treasurepoints)
+    #region MainCodeLogic
+    public (int, Dictionary<Item,int>, Dictionary<Item, float>, float) TreasureHuntPointsTranslation(bool? natural, float luckpercent, float treasurepoints)
     {
         //Initialize variables
-        int items = 0;
+        int itemsCount = 0;
         float luck = 1.0f;
         float luckfactor = 0.0f; //Max 5
         ///////////////////////////////////////////////////
@@ -49,7 +61,7 @@ public partial class MainWindow : Window
         {
             luck += (treasurepoints - 1000);
         }
-        luck *= (float)luckmultiplier;
+        luck *= luckmultiplier;
         ///////////////////////////////////////////////////
         //Determine luck factor (max 5)
         if (luck > 10000.0f) luck = 10000.0f;
@@ -58,54 +70,60 @@ public partial class MainWindow : Window
         //Determine number of dropped items (max 24)
         if (treasurepoints < 10)
         {
-            items = 0;
+            itemsCount = 0;
         }
         else if (treasurepoints >= 10 && treasurepoints < 100)
         {
-            items = GetnumberofItems(treasurepoints, 10.0f, 100.0f, 1.00f, 2.00f, luckfactor); //1.25 1.5
+            itemsCount = GetnumberofItems(treasurepoints, 10.0f, 100.0f, 1.00f, 2.00f, luckfactor); //1.25 1.5
         }
         else if (treasurepoints >= 100 && treasurepoints < 200)
         {
-            items = GetnumberofItems(treasurepoints, 100.0f, 200.0f, 2.00f, 4.00f, luckfactor); //2.5 3.0
+            itemsCount = GetnumberofItems(treasurepoints, 100.0f, 200.0f, 2.00f, 4.00f, luckfactor); //2.5 3.0
         }
         else if (treasurepoints >= 200 && treasurepoints < 300)
         {
-            items = GetnumberofItems(treasurepoints, 200.0f, 300.0f, 3.00f, 5.00f, luckfactor); //3.5 4.0
+            itemsCount = GetnumberofItems(treasurepoints, 200.0f, 300.0f, 3.00f, 5.00f, luckfactor); //3.5 4.0
         }
         else if (treasurepoints >= 300 && treasurepoints < 400)
         {
-            items = GetnumberofItems(treasurepoints, 300.0f, 400.0f, 3.00f, 7.00f, luckfactor); //4.0 5.0
+            itemsCount = GetnumberofItems(treasurepoints, 300.0f, 400.0f, 3.00f, 7.00f, luckfactor); //4.0 5.0
         }
         else if (treasurepoints >= 400 && treasurepoints < 500)
         {
-            items = GetnumberofItems(treasurepoints, 400.0f, 500.0f, 4.00f, 8.00f, luckfactor); //5.0 6.0
+            itemsCount = GetnumberofItems(treasurepoints, 400.0f, 500.0f, 4.00f, 8.00f, luckfactor); //5.0 6.0
         }
         else if (treasurepoints >= 500 && treasurepoints < 600)
         {
-            items = GetnumberofItems(treasurepoints, 500.0f, 600.0f, 4.00f, 10.00f, luckfactor); //5.5 7.0
+            itemsCount = GetnumberofItems(treasurepoints, 500.0f, 600.0f, 4.00f, 10.00f, luckfactor); //5.5 7.0
         }
         else if (treasurepoints >= 600 && treasurepoints < 700)
         {
-            items = GetnumberofItems(treasurepoints, 600.0f, 700.0f, 5.00f, 11.00f, luckfactor); //6.5 8.0
+            itemsCount = GetnumberofItems(treasurepoints, 600.0f, 700.0f, 5.00f, 11.00f, luckfactor); //6.5 8.0
         }
         else if (treasurepoints >= 700 && treasurepoints < 800)
         {
-            items = GetnumberofItems(treasurepoints, 700.0f, 800.0f, 5.00f, 13.00f, luckfactor); //7.0 9.0
+            itemsCount = GetnumberofItems(treasurepoints, 700.0f, 800.0f, 5.00f, 13.00f, luckfactor); //7.0 9.0
         }
         else if (treasurepoints >= 800 && treasurepoints < 900)
         {
-            items = GetnumberofItems(treasurepoints, 800.0f, 900.0f, 6.00f, 14.00f, luckfactor); //8.0 10.0
+            itemsCount = GetnumberofItems(treasurepoints, 800.0f, 900.0f, 6.00f, 14.00f, luckfactor); //8.0 10.0
         }
         else if (treasurepoints >= 900 && treasurepoints < 1000)
         {
-            items = GetnumberofItems(treasurepoints, 900.0f, 1000.0f, 6.00f, 18.00f, luckfactor); //9.0 12.0
+            itemsCount = GetnumberofItems(treasurepoints, 900.0f, 1000.0f, 6.00f, 18.00f, luckfactor); //9.0 12.0
         }
         else if (treasurepoints >= 1000)
         {
-            items = GetnumberofItems(treasurepoints, 1000.0f, 2500.0f, 12.00f, 24.00f, luckfactor); //15.0 18.0
+            itemsCount = GetnumberofItems(treasurepoints, 1000.0f, 2500.0f, 12.00f, 24.00f, luckfactor); //15.0 18.0
         }
-        return items;
+        ///////////////////////////////////////////////////
+        //Determine Items
+        Dictionary<Item, int> DroppedItems = GetItems(DropChance, itemsCount, luckfactor);
+        Dictionary<Item, float> DroppedInfo = [];
+        return (itemsCount, DroppedItems, DroppedInfo, luckfactor);
     }
+    #endregion
+    #region HelperLogics
     //Method to get number of items in treasure box
     public int GetnumberofItems(float treasurepoint,float minTPoint, float maxTPoint, 
                                 float mindrop, float maxdrop, float luckfactor)
@@ -163,6 +181,33 @@ public partial class MainWindow : Window
                 return (int)Math.Floor(randomDrop);
         }
     }
+    public Dictionary<Item, (int, int)> GetDropChance()
+    {
+        Dictionary<Item, (int, int)> DropChance = new Dictionary<Item, (int, int)>();
+        for (int i = 0; i < TreasureBoxDefault.GetAllTreasureTypes.Count; i++)
+        {
+            TreasureType treasure = TreasureBoxDefault.GetAllTreasureTypes[i];
+            for (int j = 0; j < treasure.GetAllItemsInTreasureTypes.Count; j++)
+            {
+                Item item = treasure.GetAllItemsInTreasureTypes[j];
+                int baseRate = item.GetItemRate * treasure.GetTreasureRate;
+                int itemtype = treasure.GetTreasureType;
+                DropChance.Add(item, (baseRate, itemtype));
+            }
+        }
+        return DropChance;
+    }
+    public Dictionary<Item, int> GetItems(Dictionary<Item, (int, int)> DropChance, int NItems, float LuckFactor)
+    {
+        Dictionary<Item, int> DroppedItems = new Dictionary<Item, int>();
+
+        for (int i = 0; i < NItems; i++)
+        {
+            //Determine treasures
+        }
+        return DroppedItems;
+    }
+    #endregion
     #region Treasure Box Initialization
     //Initialize
     public void AddTreasures()
@@ -177,8 +222,8 @@ public partial class MainWindow : Window
         Item CurveMastery = new Item("Curve Mastery", 2);
         Item MiracleSign = new Item("Miracle Sign", 2);
         Item PowerStrengthBoost = new Item("Power Strength Boost", 1);
-        List<Item> PangItems = new List<Item>() 
-        {StrengthBoost, Tranquillizer, LuckyPangya, SpinMastery, CurveMastery, MiracleSign, PowerStrengthBoost};
+        PangItems.AddRange(new List<Item>()
+        {StrengthBoost, Tranquillizer, LuckyPangya, SpinMastery, CurveMastery, MiracleSign, PowerStrengthBoost});
         /////////////////////////////////////
         //Cookie
         Item AutoCalipper = new Item("Auto Calipper", 2);
@@ -190,38 +235,53 @@ public partial class MainWindow : Window
         Item DualTranquillizer = new Item("Dual Tranquillizer", 1);
         Item ReplayTape = new Item("Replay Tape", 1);
         Item PowerCalipper = new Item("Power Calipper", 1);
-        List<Item> CookieItems = new List<Item>()
+        CookieItems.AddRange(new List<Item>()
         {AutoCalipper, SpeedBooster, SafeTee, SlientWind, OblivionFlower, 
-         DualLuckyPangya, DualTranquillizer, ReplayTape, PowerCalipper};
+         DualLuckyPangya, DualTranquillizer, ReplayTape, PowerCalipper});
         /////////////////////////////////////
         //Cards
         Item BronzeCard = new Item("Bronze Card Pack", 3);
         Item SilverCard = new Item("Sliver Card Pack", 2);
         Item GoldCard = new Item("Gold Card Pack", 1);
-        List<Item> Cards = new List<Item>()
-        {BronzeCard, SilverCard, GoldCard};
+        CardItems.AddRange(new List<Item>()
+        {BronzeCard, SilverCard, GoldCard});
         /////////////////////////////////////
         //Rare Items
         Item CardRemover = new Item("Card Remover", 1);
-        List<Item> Rares = new List<Item>()
-        {CardRemover};
+        RareItems.AddRange(new List<Item>()
+        {CardRemover});
         //////////////////////////////////////////////////////////////////////////////////
         //Initialize treasure types
         TreasureType Pang = new TreasureType("Pang", PangItems, 1, 1200); //60%
         TreasureType Cookie = new TreasureType("Cookie", CookieItems, 2, 600); //30%
-        TreasureType Card = new TreasureType("Card", Cards, 3, 199); //9.95%
-        TreasureType Rare = new TreasureType("Rare", Rares, 4, 1); //0.05%
-        List<TreasureType> AllTreasures = new List<TreasureType>()
-        {Pang, Cookie, Card, Rare};
+        TreasureType Card = new TreasureType("Card", CardItems, 3, 199); //9.95%
+        TreasureType Rare = new TreasureType("Rare", RareItems, 4, 1); //0.05%
+        AllTreasures.AddRange(new List<TreasureType>()
+        {Pang, Cookie, Card, Rare});
         //Initialize treasure boxes
-        TreasureBox TreasureBox = new TreasureBox("TreasureBox", AllTreasures);
+        TreasureBoxDefault.UpdateTreasureBox("Treasure Box", AllTreasures);
+
+        //Determine drop chance
+        DropChance = GetDropChance();
+        TotalItemDropChance = 0;
+        for (int i = 0; i < DropChance.Count; i++)
+        {
+            TotalItemDropChance += DropChance.ElementAt(i).Value.Item1;
+        }
     }
-    #endregion
+
     //Classes for treasure box
     public class TreasureBox(string Name, List<TreasureType> Treasures)
     {
         string Name;
         List<TreasureType> Treasures;
+        public void UpdateTreasureBox(string name, List<TreasureType> treasures)
+        {
+            Name = name;
+            Treasures = treasures;
+        }
+        public List<TreasureType> GetAllTreasureTypes => Treasures;
+        public string GetTreasureName => Name;
     }
     public class TreasureType(string Name, List<Item> Items, int TreasureType, int rate)
     {
@@ -229,12 +289,31 @@ public partial class MainWindow : Window
         List<Item> Items;
         int typeoftreasure; //1 = Common, 2 = Uncommon, 3 = Rare, 4 = Epic, 5 = Legendary
         int rate;
+        public void UpdateTreasureType(string name, List<Item> items, int treasureType, int Rate)
+        {
+            Name = name;
+            Items = items;
+            typeoftreasure = treasureType;
+            rate = Rate;
+        }
+        public string GetTreasureTypeName => Name;
+        public List<Item> GetAllItemsInTreasureTypes => Items;
+        public int GetTreasureType => typeoftreasure;
+        public int GetTreasureRate => rate;
     }
     public class Item(string Name, int Rate)
     {
         string Name;
         int Rate;
+        public void UpdateItems(string name, int rate)
+        {
+            Name = name;
+            Rate = rate;
+        }
+        public string GetItemName => Name;
+        public int GetItemRate => Rate;
     }
+    #endregion
 
     private void Go_Button_Click(object sender, RoutedEventArgs e)
     {
@@ -242,7 +321,7 @@ public partial class MainWindow : Window
         float TreasurePoint = float.Parse(TreasureValueText.Text);
         float Luckmultiplier = float.Parse(LuckValueText.Text);
         //MessageBox.Show(TreasureValueText.Text);
-        int TreasureCount = TreasureHuntPointsTranslation(NaturalWind, Luckmultiplier, TreasurePoint);
+        int TreasureCount = TreasureHuntPointsTranslation(NaturalWind, Luckmultiplier, TreasurePoint).Item1;
         TreasureCountText.Content = TreasureCount.ToString();
     }
 }
