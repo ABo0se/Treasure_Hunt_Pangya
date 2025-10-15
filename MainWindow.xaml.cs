@@ -22,14 +22,16 @@ public partial class MainWindow : Window
 {
     #region DefaultVars
     static readonly Random rand = new();
-    private readonly TreasureBox TreasureBoxDefault = new("TreasureBox", new List<TreasureType>());
-    private readonly List<TreasureType> AllTreasures = new();
     private readonly List<Item> PangItems = [];
     private readonly List<Item> CookieItems = [];
     private readonly List<Item> CardItems = [];
     private readonly List<Item> RareItems = [];
-    private Dictionary<Item, (int, int)> DropChance;
-    private int TotalItemDropChance;
+    private static readonly List<TreasureType> AllTreasures = [];
+    private static readonly TreasureBox TreasureBoxDefault = new("TreasureBox", AllTreasures);
+    private static Dictionary<Item, (string, int, int)> DropChance = [];
+    private static int TotalItemDropWeight = 0;
+    //private Dictionary<Item, (int, int)> DropChance;
+    //private int TotalItemDropChance;
     #endregion
     public MainWindow()
     {
@@ -118,9 +120,12 @@ public partial class MainWindow : Window
         }
         ///////////////////////////////////////////////////
         //Determine Items
-        Dictionary<Item, int> DroppedItems = GetItems(DropChance, itemsCount, luckfactor);
-        Dictionary<Item, float> DroppedInfo = [];
-        return (itemsCount, DroppedItems, DroppedInfo, luckfactor);
+        Dictionary<Item, (string, int, int)> SynthesisDropChance = new Dictionary<Item, (string, int, int)>(DropChance);
+        (Dictionary<Item, (string, int, int)>, int) DropAdjustment = DroprateAdjustment(SynthesisDropChance, luckfactor);
+        Dictionary<Item, float> Droppedinfo = DropInfo(SynthesisDropChance, (double)DropAdjustment.Item2);
+        Dictionary<Item, int> DroppedItems = GetItems(SynthesisDropChance, itemsCount, luckfactor);
+        
+        return (itemsCount, DroppedItems, Droppedinfo, luckfactor);
     }
     #endregion
     #region HelperLogics
@@ -181,30 +186,53 @@ public partial class MainWindow : Window
                 return (int)Math.Floor(randomDrop);
         }
     }
-    public Dictionary<Item, (int, int)> GetDropChance()
+    public Dictionary<Item, (string, int, int)> GetDropChance()
     {
-        Dictionary<Item, (int, int)> DropChance = new Dictionary<Item, (int, int)>();
-        for (int i = 0; i < TreasureBoxDefault.GetAllTreasureTypes.Count; i++)
+        Dictionary<Item, (string name, int rate, int type)> DropChance = new();
+
+        foreach (var treasure in TreasureBoxDefault.Treasures)
         {
-            TreasureType treasure = TreasureBoxDefault.GetAllTreasureTypes[i];
-            for (int j = 0; j < treasure.GetAllItemsInTreasureTypes.Count; j++)
+            foreach (var item in treasure.Items)
             {
-                Item item = treasure.GetAllItemsInTreasureTypes[j];
-                int baseRate = item.GetItemRate * treasure.GetTreasureRate;
-                int itemtype = treasure.GetTreasureType;
-                DropChance.Add(item, (baseRate, itemtype));
+                int baseRate = item.rate * treasure.rate;
+                int itemType = treasure.Treasuretype;
+                DropChance[item] = (item.name, baseRate, itemType);
             }
         }
         return DropChance;
     }
-    public Dictionary<Item, int> GetItems(Dictionary<Item, (int, int)> DropChance, int NItems, float LuckFactor)
+    public (Dictionary<Item, (string, int, int)>, int) DroprateAdjustment
+           (Dictionary<Item,(string, int, int)> DropChance, float luckfactor)
+    {
+        int TotalWeightDrop = 0;
+        float droprateMultiplier = (float)Math.Round(1.0 * Math.Pow(0.76, luckfactor), 1);
+        foreach (var key in DropChance.Keys.ToList()) // ToList() avoids "collection modified" exception
+        {
+            var value = DropChance[key];
+            if (value.Item3 == 1 || value.Item3 == 2)
+            DropChance[key] = (value.Item1, (int)(value.Item2 * droprateMultiplier), value.Item3);
+            TotalWeightDrop += DropChance[key].Item2;
+        }
+        return (DropChance, TotalWeightDrop);
+    }
+    public Dictionary<Item, float> DropInfo (Dictionary<Item, (string, int, int)> DropChance, double TotalDropWeight)
+    {
+        Dictionary<Item, float> DropInfo = new Dictionary<Item, float>();
+        foreach (Item key in DropChance.Keys)
+        {
+            DropInfo.Add(key, (float)Math.Round((key.rate * 100/TotalDropWeight), 2));
+        }
+        return DropInfo;
+    }
+    public Dictionary<Item, int> GetItems(Dictionary<Item, (string, int, int)> DropChance, int NItems, float LuckFactor)
     {
         Dictionary<Item, int> DroppedItems = new Dictionary<Item, int>();
 
         for (int i = 0; i < NItems; i++)
         {
-            //Determine treasures
+
         }
+
         return DroppedItems;
     }
     #endregion
@@ -258,61 +286,15 @@ public partial class MainWindow : Window
         TreasureType Rare = new TreasureType("Rare", RareItems, 4, 1); //0.05%
         AllTreasures.AddRange(new List<TreasureType>()
         {Pang, Cookie, Card, Rare});
-        //Initialize treasure boxes
-        TreasureBoxDefault.UpdateTreasureBox("Treasure Box", AllTreasures);
 
         //Determine drop chance
         DropChance = GetDropChance();
-        TotalItemDropChance = 0;
-        for (int i = 0; i < DropChance.Count; i++)
-        {
-            TotalItemDropChance += DropChance.ElementAt(i).Value.Item1;
-        }
     }
 
     //Classes for treasure box
-    public class TreasureBox(string Name, List<TreasureType> Treasures)
-    {
-        string Name;
-        List<TreasureType> Treasures;
-        public void UpdateTreasureBox(string name, List<TreasureType> treasures)
-        {
-            Name = name;
-            Treasures = treasures;
-        }
-        public List<TreasureType> GetAllTreasureTypes => Treasures;
-        public string GetTreasureName => Name;
-    }
-    public class TreasureType(string Name, List<Item> Items, int TreasureType, int rate)
-    {
-        string Name;
-        List<Item> Items;
-        int typeoftreasure; //1 = Common, 2 = Uncommon, 3 = Rare, 4 = Epic, 5 = Legendary
-        int rate;
-        public void UpdateTreasureType(string name, List<Item> items, int treasureType, int Rate)
-        {
-            Name = name;
-            Items = items;
-            typeoftreasure = treasureType;
-            rate = Rate;
-        }
-        public string GetTreasureTypeName => Name;
-        public List<Item> GetAllItemsInTreasureTypes => Items;
-        public int GetTreasureType => typeoftreasure;
-        public int GetTreasureRate => rate;
-    }
-    public class Item(string Name, int Rate)
-    {
-        string Name;
-        int Rate;
-        public void UpdateItems(string name, int rate)
-        {
-            Name = name;
-            Rate = rate;
-        }
-        public string GetItemName => Name;
-        public int GetItemRate => Rate;
-    }
+    public record TreasureBox(string Name, List<TreasureType> Treasures);
+    public record TreasureType(string Name, List<Item> Items, int Treasuretype, int rate);
+    public record Item(string name, int rate);
     #endregion
 
     private void Go_Button_Click(object sender, RoutedEventArgs e)
