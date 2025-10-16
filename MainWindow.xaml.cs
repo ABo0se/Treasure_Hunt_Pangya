@@ -35,8 +35,8 @@ public partial class MainWindow : Window
     #endregion
     public MainWindow()
     {
-        InitializeComponent();
         AddTreasures();
+        InitializeComponent();
     }
     #region MainCodeLogic
     public (int, Dictionary<Item,int>, Dictionary<Item, float>, float) TreasureHuntPointsTranslation(bool? natural, float luckpercent, float treasurepoints)
@@ -121,9 +121,11 @@ public partial class MainWindow : Window
         ///////////////////////////////////////////////////
         //Determine Items
         Dictionary<Item, (string, int, int)> SynthesisDropChance = new Dictionary<Item, (string, int, int)>(DropChance);
-        (Dictionary<Item, (string, int, int)>, int) DropAdjustment = DroprateAdjustment(SynthesisDropChance, luckfactor);
-        Dictionary<Item, float> Droppedinfo = DropInfo(SynthesisDropChance, (double)DropAdjustment.Item2);
-        Dictionary<Item, int> DroppedItems = GetItems(SynthesisDropChance, itemsCount, luckfactor);
+        (Dictionary<Item, (string, int, int)>, List<Item>, List<int>, int) DropAdjustment = 
+                          DroprateAdjustment(SynthesisDropChance, luckfactor);
+        Dictionary<Item, float> Droppedinfo = DropInfo(DropAdjustment.Item1, DropAdjustment.Item2, DropAdjustment.Item4);
+        Dictionary<Item, int> DroppedItems = GetItems(DropAdjustment.Item1, DropAdjustment.Item2, DropAdjustment.Item3, 
+                                                      DropAdjustment.Item4, itemsCount);
         
         return (itemsCount, DroppedItems, Droppedinfo, luckfactor);
     }
@@ -190,50 +192,94 @@ public partial class MainWindow : Window
     {
         Dictionary<Item, (string name, int rate, int type)> DropChance = new();
 
-        foreach (var treasure in TreasureBoxDefault.Treasures)
+        foreach (TreasureType treasure in TreasureBoxDefault.Treasures)
         {
-            foreach (var item in treasure.Items)
+            foreach (Item item in treasure.Items)
             {
                 int baseRate = item.rate * treasure.rate;
                 int itemType = treasure.Treasuretype;
                 DropChance[item] = (item.name, baseRate, itemType);
             }
         }
+
         return DropChance;
     }
-    public (Dictionary<Item, (string, int, int)>, int) DroprateAdjustment
-           (Dictionary<Item,(string, int, int)> DropChance, float luckfactor)
+    public (Dictionary<Item, (string, int, int)>, List<Item>, List<int>, int)
+    DroprateAdjustment(Dictionary<Item, (string, int, int)> DropChance, float luckfactor)
     {
-        int TotalWeightDrop = 0;
+        int totalWeight = 0;
+        List<Item> items = new List<Item>();
+        List<int> cumulativeWeights = new List<int>();
+
+        // Calculate luck-based multiplier
         float droprateMultiplier = (float)Math.Round(1.0 * Math.Pow(0.76, luckfactor), 1);
-        foreach (var key in DropChance.Keys.ToList()) // ToList() avoids "collection modified" exception
+
+        // Adjust rates and build cumulative weights
+        foreach (Item key in DropChance.Keys.ToList()) // ToList() avoids "collection modified" exception
         {
-            var value = DropChance[key];
+            (string, int, int) value = DropChance[key];
+
+            // Adjust only specific item types
             if (value.Item3 == 1 || value.Item3 == 2)
-            DropChance[key] = (value.Item1, (int)(value.Item2 * droprateMultiplier), value.Item3);
-            TotalWeightDrop += DropChance[key].Item2;
+                DropChance[key] = (value.Item1, (int)(value.Item2 * droprateMultiplier), value.Item3);
+
+            // Update cumulative lists
+            int weight = DropChance[key].Item2;
+            totalWeight += weight;
+            items.Add(key);
+            cumulativeWeights.Add(totalWeight);
         }
-        return (DropChance, TotalWeightDrop);
+        return (DropChance, items, cumulativeWeights, totalWeight);
     }
-    public Dictionary<Item, float> DropInfo (Dictionary<Item, (string, int, int)> DropChance, double TotalDropWeight)
+
+    public Dictionary<Item, float> DropInfo(Dictionary<Item, (string name, int rate, int type)> DropChance, 
+                                            List<Item> Items, double TotalDropWeight)
     {
-        Dictionary<Item, float> DropInfo = new Dictionary<Item, float>();
-        foreach (Item key in DropChance.Keys)
+        Dictionary<Item, float> dropInfo = new Dictionary<Item, float>(Items.Count);
+
+        foreach (Item item in Items)
         {
-            DropInfo.Add(key, (float)Math.Round((key.rate * 100/TotalDropWeight), 2));
+            int rate = DropChance[item].rate;
+            float percentage = (float)Math.Round((rate * 100.0 / TotalDropWeight), 2);
+            dropInfo[item] = percentage;
         }
-        return DropInfo;
+
+        return dropInfo;
     }
-    public Dictionary<Item, int> GetItems(Dictionary<Item, (string, int, int)> DropChance, int NItems, float LuckFactor)
+
+    public Dictionary<Item, int> GetItems(Dictionary<Item, (string name, int rate, int type)> dropChance,
+                                          List<Item> items, List<int> cumulativeWeights, int totalWeight, int nItems)
     {
-        Dictionary<Item, int> DroppedItems = new Dictionary<Item, int>();
+        var droppedItems = new Dictionary<Item, int>();
+        var rand = new Random();
 
-        for (int i = 0; i < NItems; i++)
+        for (int i = 0; i < nItems; i++)
         {
+            int randomNumber = rand.Next(1, totalWeight + 1);
 
+            // Efficient binary search for the item index
+            int index = GetItemIndexFromWeight(cumulativeWeights, randomNumber);
+            Item item = items[index];
+
+            if (droppedItems.ContainsKey(item))
+                droppedItems[item]++;
+            else
+                droppedItems[item] = 1;
         }
 
-        return DroppedItems;
+        return droppedItems;
+    }
+    /// Finds the index of the item corresponding to the given random weight using binary search.
+
+    public int GetItemIndexFromWeight(List<int> cumulativeWeights, int randomNumber)
+    {
+        int index = cumulativeWeights.BinarySearch(randomNumber);
+
+        // If BinarySearch returns a negative number, bitwise complement (~) gives the index of the next larger element
+        if (index < 0)
+            index = ~index;
+
+        return index;
     }
     #endregion
     #region Treasure Box Initialization
