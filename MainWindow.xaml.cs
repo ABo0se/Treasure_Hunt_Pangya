@@ -244,12 +244,34 @@ public partial class MainWindow : Window
             int chestWeight = treasure.rate;
             int totalItemWeight = treasure.Items.Sum(i => i.rate);
 
+            int assignedWeight = 0;
+            var tempWeights = new Dictionary<Item, int>();
+
+            // First pass: calculate truncated weights
             foreach (Item item in treasure.Items)
             {
-                // Multiply first (to preserve precision), then divide
-                int finalWeight = chestWeight * item.rate / totalItemWeight;
+                int weight = chestWeight * item.rate / totalItemWeight;
+                tempWeights[item] = weight;
+                assignedWeight += weight;
+            }
 
-                dropChance[item] = (item.name, finalWeight, treasure.Treasuretype);
+            // Calculate remainder and distribute it
+            int remainder = chestWeight - assignedWeight;
+            if (remainder > 0)
+            {
+                // Distribute 1 extra weight to the largest-rate items
+                foreach (var item in treasure.Items.OrderByDescending(i => i.rate))
+                {
+                    if (remainder == 0) break;
+                    tempWeights[item]++;
+                    remainder--;
+                }
+            }
+
+            // Assign final weights
+            foreach (var kvp in tempWeights)
+            {
+                dropChance[kvp.Key] = (kvp.Key.name, kvp.Value, treasure.Treasuretype);
             }
         }
 
@@ -257,33 +279,85 @@ public partial class MainWindow : Window
     }
 
 
+
     public (Dictionary<Item, (string, int, int)>, List<Item>, List<int>, int)
     DroprateAdjustment(Dictionary<Item, (string, int, int)> DropChance, float luckfactor)
     {
-        int totalWeight = 0;
+        int totalWeight = DropChance.Values.Sum(v => v.Item2);
         List<Item> items = new List<Item>();
         List<int> cumulativeWeights = new List<int>();
 
-        // Calculate luck-based multiplier
-        float droprateMultiplier = (float)Math.Round(Math.Pow(0.55, luckfactor), 2);
+        float droprateMultiplier = (float)Math.Round(Math.Pow(1.7, luckfactor), 2);
 
-        // Adjust rates and build cumulative weights
-        foreach (Item key in DropChance.Keys.ToList()) // ToList() avoids "collection modified" exception
+        // Step 1: Calculate bonus for boosted items
+        var boostedItems = DropChance.Where(kv => kv.Value.Item3 == 3 || kv.Value.Item3 == 4)
+                                     .ToDictionary(kv => kv.Key, kv => kv.Value.Item2);
+        var otherItems = DropChance.Where(kv => kv.Value.Item3 != 3 && kv.Value.Item3 != 4)
+                                   .ToDictionary(kv => kv.Key, kv => kv.Value.Item2);
+
+        // Step 2: Compute raw bonuses
+        var bonusWeights = new Dictionary<Item, int>();
+        int totalBonus = 0;
+        foreach (var kvp in boostedItems)
         {
-            (string, int, int) value = DropChance[key];
-
-            // Adjust only specific item types
-            if (value.Item3 == 1 || value.Item3 == 2)
-                DropChance[key] = (value.Item1, (int)(value.Item2 * droprateMultiplier), value.Item3);
-
-            // Update cumulative lists
-            int weight = DropChance[key].Item2;
-            totalWeight += weight;
-            items.Add(key);
-            cumulativeWeights.Add(totalWeight);
+            int bonus = (int)(kvp.Value * (droprateMultiplier - 1));
+            bonusWeights[kvp.Key] = bonus;
+            totalBonus += bonus;
         }
-        return (DropChance, items, cumulativeWeights, totalWeight);
+
+        // Step 3: Assign truncated bonuses, handle remainder
+        int assignedBonus = bonusWeights.Values.Sum();
+        int remainder = totalBonus - assignedBonus;
+        foreach (var key in bonusWeights.OrderByDescending(k => boostedItems[k.Key]).Select(k => k.Key))
+        {
+            if (remainder == 0) break;
+            bonusWeights[key]++;
+            remainder--;
+        }
+
+        // Step 4: Apply bonuses
+        foreach (var kvp in bonusWeights)
+        {
+            var old = DropChance[kvp.Key];
+            DropChance[kvp.Key] = (old.Item1, old.Item2 + kvp.Value, old.Item3);
+        }
+
+        // Step 5: Deduct totalBonus from other items proportionally
+        int deductableSum = otherItems.Values.Sum();
+        var deductions = new Dictionary<Item, int>();
+        int deducted = 0;
+        foreach (var kvp in otherItems)
+        {
+            int deduction = kvp.Value * totalBonus / deductableSum;
+            deductions[kvp.Key] = deduction;
+            deducted += deduction;
+        }
+
+        remainder = totalBonus - deducted;
+        foreach (var key in otherItems.OrderByDescending(k => k.Value).Select(k => k.Key))
+        {
+            if (remainder == 0) break;
+            deductions[key]++;
+            remainder--;
+        }
+
+        foreach (var kvp in deductions)
+        {
+            var old = DropChance[kvp.Key];
+            DropChance[kvp.Key] = (old.Item1, old.Item2 - kvp.Value, old.Item3);
+        }
+
+        // Step 6: Build cumulative weights
+        int runningTotal = 0;
+        foreach (var kvp in DropChance)
+        {
+            runningTotal += kvp.Value.Item2;
+            items.Add(kvp.Key);
+            cumulativeWeights.Add(runningTotal);
+        }
+        return (DropChance, items, cumulativeWeights, runningTotal);
     }
+
 
     public Dictionary<Item, float> DropInfo(Dictionary<Item, (string name, int rate, int type)> DropChance, 
                                             List<Item> Items, double TotalDropWeight)
@@ -383,10 +457,10 @@ public partial class MainWindow : Window
         {CardRemover});
         //////////////////////////////////////////////////////////////////////////////////
         //Initialize treasure types
-        TreasureType Pang = new TreasureType("Pang", PangItems, 1, 3000);
-        TreasureType Cookie = new TreasureType("Cookie", CookieItems, 2, 1925);
-        TreasureType Card = new TreasureType("Card", CardItems, 3, 74);
-        TreasureType Rare = new TreasureType("Rare", RareItems, 4, 1);
+        TreasureType Pang = new TreasureType("Pang", PangItems, 1, 60000);
+        TreasureType Cookie = new TreasureType("Cookie", CookieItems, 2, 38500);
+        TreasureType Card = new TreasureType("Card", CardItems, 3, 1480);
+        TreasureType Rare = new TreasureType("Rare", RareItems, 4, 20);
         AllTreasures.AddRange(new List<TreasureType>()
         {Pang, Cookie, Card, Rare});
 
