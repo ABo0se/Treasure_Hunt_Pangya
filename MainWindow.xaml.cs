@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Printing;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -29,7 +30,8 @@ public partial class MainWindow : Window
     private static readonly List<TreasureType> AllTreasures = [];
     private static readonly TreasureBox TreasureBoxDefault = new("TreasureBox", AllTreasures);
     private static Dictionary<Item, (string, int, int)> DropChance = [];
-    private static int TotalItemDropWeight = 0;
+    private static float? luckvalue = null; //Always re-calculate at first run and when luck changes.
+    private static (Dictionary<Item, (string, int, int)>, List<Item>, List<int>, int) DropLogic;
     //private Dictionary<Item, (int, int)> DropChance;
     //private int TotalItemDropChance;
     #endregion
@@ -121,11 +123,17 @@ public partial class MainWindow : Window
         ///////////////////////////////////////////////////
         //Determine Items
         Dictionary<Item, (string, int, int)> SynthesisDropChance = new Dictionary<Item, (string, int, int)>(DropChance);
-        (Dictionary<Item, (string, int, int)>, List<Item>, List<int>, int) DropAdjustment = 
-                          DroprateAdjustment(SynthesisDropChance, luckfactor);
-        Dictionary<Item, float> Droppedinfo = DropInfo(DropAdjustment.Item1, DropAdjustment.Item2, DropAdjustment.Item4);
-        Dictionary<Item, int> DroppedItems = GetItems(DropAdjustment.Item1, DropAdjustment.Item2, DropAdjustment.Item3, 
-                                                      DropAdjustment.Item4, itemsCount);
+        if (luckvalue != luckfactor)
+        {
+            luckvalue = luckfactor;
+            (Dictionary<Item, (string, int, int)>, List<Item>, List<int>, int) DropAdjustment =
+            DroprateAdjustment(SynthesisDropChance, luckfactor);
+            DropLogic = DropAdjustment;
+        }
+
+        Dictionary<Item, float> Droppedinfo = DropInfo(DropLogic.Item1, DropLogic.Item2, DropLogic.Item4);
+        Dictionary<Item, int> DroppedItems = GetItems(DropLogic.Item1, DropLogic.Item2, DropLogic.Item3,
+                                                      DropLogic.Item4, itemsCount);
         
         return (itemsCount, DroppedItems, Droppedinfo, luckfactor);
     }
