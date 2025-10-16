@@ -5,14 +5,22 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Treasure_Hunt_Pangya"
         mc:Ignorable="d"
-        Title="Treasure Point" FontFamily="Segoe UI Variable Display Semibold" WindowStyle="ThreeDBorderWindow" ResizeMode="NoResize" Height="175" Width="370">
+        Title="Treasure Point" FontFamily="Segoe UI Variable Display Semibold" WindowStyle="ThreeDBorderWindow" SizeToContent="WidthAndHeight" ResizeMode="NoResize">
     <Grid>
-        <StackPanel Orientation="Vertical">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="39*"/>
+            <RowDefinition Height="16*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="183*"/>
+            <ColumnDefinition Width="187*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Vertical" Grid.ColumnSpan="2" Grid.RowSpan="2">
             <StackPanel Orientation="Horizontal">
                 <Label x:Name="TPointLabel" Content="Treasure point :" HorizontalAlignment="Left" Margin="10,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
-                <TextBox x:Name="TreasureValueText" TextWrapping="Wrap" Text="0" Width="100" VerticalAlignment="Center" Margin="0,5,0,5" FontFamily="Segoe UI Variable Display Semibold" FontSize="14" HorizontalAlignment="Left" TextAlignment="Center"/>
+                <TextBox x:Name="TreasureValueText" TextWrapping="Wrap" Text="0" VerticalAlignment="Center" Margin="0,5,0,5" FontFamily="Segoe UI Variable Display Semibold" FontSize="14" TextAlignment="Center" Width="75"/>
                 <Label x:Name="LuckLabel" Content="Luck %" HorizontalAlignment="Left" Margin="10,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
-                <TextBox x:Name="LuckValueText" TextWrapping="Wrap" Text="0" Width="100" VerticalAlignment="Center" Margin="0,5,10,5" FontFamily="Segoe UI Variable Display Semibold" FontSize="14" HorizontalAlignment="Left" TextAlignment="Center"/>
+                <TextBox x:Name="LuckValueText" TextWrapping="Wrap" Text="0" VerticalAlignment="Center" Margin="0,5,10,5" FontFamily="Segoe UI Variable Display Semibold" FontSize="14" HorizontalAlignment="Left" TextAlignment="Center" Width="47"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <CheckBox x:Name="Natural_Wind_Checkbox" Content="Natural wind mode" VerticalAlignment="Center" Margin="10,5,0,5" FontFamily="Segoe UI Variable Display Semibold" FontSize="11"/>
@@ -23,6 +31,13 @@
             <StackPanel Orientation="Horizontal">
                 <Label x:Name="TreasureCountPlaceholder" Content="Treasure count :" HorizontalAlignment="Left" Margin="10,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
                 <Label x:Name="TreasureCountText" Content="-" HorizontalAlignment="Left" Margin="0,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
+                <Label x:Name="LuckFactorPlaceholder" Content="Luck Factor :" HorizontalAlignment="Left" Margin="10,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
+                <Label x:Name="LuckFactorText" Content="-" HorizontalAlignment="Left" Margin="0,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
+            </StackPanel>
+            <StackPanel>
+                <Label x:Name="DropContent" Content="Dropped Items : " HorizontalAlignment="Left" Margin="10,5,0,5" VerticalAlignment="Center" FontFamily="Segoe UI Variable Display Semibold" Height="26" FontSize="11"/>
+                <StackPanel Orientation="Vertical" Name="DropContentPlaceHolder">
+                </StackPanel>
             </StackPanel>
         </StackPanel>
 

@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private static Dictionary<Item, (string, int, int)> DropChance = [];
     private static float? luckvalue = null; //Always re-calculate at first run and when luck changes.
     private static (Dictionary<Item, (string, int, int)>, List<Item>, List<int>, int) DropLogic;
+    private static Dictionary<Item, float> Droppedinfo = [];
     //private Dictionary<Item, (int, int)> DropChance;
     //private int TotalItemDropChance;
     #endregion
@@ -45,8 +46,8 @@ public partial class MainWindow : Window
     {
         //Initialize variables
         int itemsCount = 0;
-        float luck = 1.0f;
-        float luckfactor = 0.0f; //Max 5
+        float luck = 2.0f;
+        float luckfactor; //Max 5
         ///////////////////////////////////////////////////
         //Prevent undesired values
         if (treasurepoints < 0.0f) treasurepoints = 0.0f;
@@ -58,18 +59,18 @@ public partial class MainWindow : Window
         float luckmultiplier = 1.00f + (luckpercent / 100.0f);
         if (natural == true)
         {
-            luck += 83.4f; //Increase min luck by factor of 2, luck multiplier, if natural wind
-            luckmultiplier += 0.2f;
+            luck += 4.4f; //Increase min luck by factor of 2, luck multiplier, if natural wind
+            luckmultiplier *= 1.25f;
         }
         if (treasurepoints > 1000)
         {
-            luck += (treasurepoints - 1000);
+            luck += (treasurepoints - 1000)/180.0f;
         }
         luck *= luckmultiplier;
         ///////////////////////////////////////////////////
         //Determine luck factor (max 5)
-        if (luck > 10000.0f) luck = 10000.0f;
-        luckfactor = (float)Math.Log10(luck);
+        if (luck > 64.0f) luck = 64.0f;
+        luckfactor = (float)Math.Log2(luck) - 1;
         ///////////////////////////////////////////////////
         //Determine number of dropped items (max 24)
         if (treasurepoints < 10)
@@ -125,13 +126,13 @@ public partial class MainWindow : Window
         Dictionary<Item, (string, int, int)> SynthesisDropChance = new Dictionary<Item, (string, int, int)>(DropChance);
         if (luckvalue != luckfactor)
         {
+            //If script is run for the first time or luck has changed, re-calculate drop logic
             luckvalue = luckfactor;
-            (Dictionary<Item, (string, int, int)>, List<Item>, List<int>, int) DropAdjustment =
-            DroprateAdjustment(SynthesisDropChance, luckfactor);
-            DropLogic = DropAdjustment;
+            DropLogic = DroprateAdjustment(SynthesisDropChance, luckfactor);
+            Droppedinfo = DropInfo(DropLogic.Item1, DropLogic.Item2, DropLogic.Item4);
         }
 
-        Dictionary<Item, float> Droppedinfo = DropInfo(DropLogic.Item1, DropLogic.Item2, DropLogic.Item4);
+       
         Dictionary<Item, int> DroppedItems = GetItems(DropLogic.Item1, DropLogic.Item2, DropLogic.Item3,
                                                       DropLogic.Item4, itemsCount);
         
@@ -161,7 +162,7 @@ public partial class MainWindow : Window
         float actualMindrop;
 
         //Renewed mindrop depend on luckfactor
-        if (luckfactor <= 2 || luckfactor >= 0)
+        if (luckfactor <= 2 && luckfactor >= 0)
         {
             actualMindrop = mindrop + (midItemdrop - mindrop) * ((luckfactor / 2.00f));
         }
@@ -175,8 +176,6 @@ public partial class MainWindow : Window
         decimal randomDrop = Math.Round(((decimal)rand.NextDouble() * (decimal)(maxdrop - actualMindrop)) + (decimal)actualMindrop, 2);
         decimal remainderDrop = Math.Round((randomDrop % 1m), 1);
         
-        //int randomRoundValue = rand.Next(1, 101 - (int)remainderDrop);
-       
         // + "\nRoundValue: " + randomRoundValue.ToString()
         if (treasurepoint < 1000)
         {
@@ -220,7 +219,7 @@ public partial class MainWindow : Window
         List<int> cumulativeWeights = new List<int>();
 
         // Calculate luck-based multiplier
-        float droprateMultiplier = (float)Math.Round(1.0 * Math.Pow(0.76, luckfactor), 1);
+        float droprateMultiplier = (float)Math.Round(Math.Pow(0.55, luckfactor), 2);
 
         // Adjust rates and build cumulative weights
         foreach (Item key in DropChance.Keys.ToList()) // ToList() avoids "collection modified" exception
@@ -334,9 +333,9 @@ public partial class MainWindow : Window
         {CardRemover});
         //////////////////////////////////////////////////////////////////////////////////
         //Initialize treasure types
-        TreasureType Pang = new TreasureType("Pang", PangItems, 1, 1200); //60%
-        TreasureType Cookie = new TreasureType("Cookie", CookieItems, 2, 600); //30%
-        TreasureType Card = new TreasureType("Card", CardItems, 3, 199); //9.95%
+        TreasureType Pang = new TreasureType("Pang", PangItems, 1, 1000); //50%
+        TreasureType Cookie = new TreasureType("Cookie", CookieItems, 2, 900); //45%
+        TreasureType Card = new TreasureType("Card", CardItems, 3, 99); //4.95%
         TreasureType Rare = new TreasureType("Rare", RareItems, 4, 1); //0.05%
         AllTreasures.AddRange(new List<TreasureType>()
         {Pang, Cookie, Card, Rare});
@@ -356,8 +355,25 @@ public partial class MainWindow : Window
         bool? NaturalWind = Natural_Wind_Checkbox.IsChecked;
         float TreasurePoint = float.Parse(TreasureValueText.Text);
         float Luckmultiplier = float.Parse(LuckValueText.Text);
-        //MessageBox.Show(TreasureValueText.Text);
-        int TreasureCount = TreasureHuntPointsTranslation(NaturalWind, Luckmultiplier, TreasurePoint).Item1;
-        TreasureCountText.Content = TreasureCount.ToString();
+        (int, Dictionary<Item, int>, Dictionary<Item, float>, float) DropResult = 
+            TreasureHuntPointsTranslation(NaturalWind, Luckmultiplier, TreasurePoint);
+        /////////////////////////////////////////////////////////////////////////////////
+        foreach (var child in DropContentPlaceHolder.Children.OfType<Label>().ToList())
+        {
+            //Clear previous results
+            DropContentPlaceHolder.Children.Remove(child);
+        }
+        foreach (KeyValuePair<Item, int> item in DropResult.Item2)
+        {
+            DropContentPlaceHolder.Children.Add(new Label()
+            {
+                Content = item.Value + "x " + item.Key.name + " (" + DropResult.Item3[item.Key] + "%)",
+                FontSize = 11,
+                FontFamily = new FontFamily("Segoe UI Variable Display Semibold"),
+                Margin = new Thickness(10, 0, 0, 0)
+            });
+        }
+        TreasureCountText.Content = DropResult.Item1.ToString();
+        LuckFactorText.Content = DropResult.Item4.ToString("0.00");
     }
 }
